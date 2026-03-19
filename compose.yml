@@ -1,0 +1,87 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: paiement-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: paiement_db
+    ports:
+      - "3309:3306"
+    volumes:
+      - paiement_mysql_data:/var/lib/mysql
+    networks:
+      - paiement-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+  redis:
+    image: redis:7.0
+    container_name: paiement-redis
+    restart: always
+    ports:
+      - "6382:6379"
+    volumes:
+      - paiement_redis_data:/data
+    networks:
+      - paiement-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: paiement-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - paiement-network
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: paiement-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - paiement-network
+  paiement-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: paiement-service-app
+    restart: always
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/paiement_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - paiement-network
+volumes:
+  paiement_mysql_data:
+  paiement_redis_data:
+networks:
+  paiement-network:
+    driver: bridge

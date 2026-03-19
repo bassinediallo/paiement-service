@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: paiement-service
+  datasource:
+    url: jdbc:mysql://mysql:3306/paiement_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  data:
+    redis:
+      host: redis
+      port: 6379
+    repositories:
+      enabled: false
+  cache:
+    type: redis
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: paiement-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+server:
+  port: 8084
+app:
+  jwt:
+    secret: paiement-service-groupeisi-secret-key-tres-longue-et-securisee-2024
+    expiration: 86400000
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
